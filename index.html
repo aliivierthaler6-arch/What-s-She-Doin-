@@ -12,6 +12,7 @@
       --card-text: #1a102b;    /* deep purple for contrast */
       --accent: #b388ff;       /* medium purple accent */
       --shadow: 0 10px 30px rgba(0,0,0,0.15);
+      --ring: rgba(255,255,255,0.35);
     }
 
     * { box-sizing: border-box; }
@@ -25,10 +26,7 @@
       color: var(--text);
     }
 
-    .wrap {
-      width: min(780px, 92vw);
-      text-align: center;
-    }
+    .wrap { width: min(780px, 92vw); text-align: center; }
 
     h1, h2 {
       margin: 0;
@@ -36,7 +34,6 @@
       letter-spacing: 0.3px;
       text-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }
-
     /* Same size + color for title and day label */
     h1, h2 { font-size: clamp(28px, 5vw, 42px); color: var(--text); }
 
@@ -47,45 +44,40 @@
       background: var(--card-bg);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
-      border: 2px solid rgba(255,255,255,0.35);
+      border: 2px solid var(--ring);
       border-radius: 20px;
       padding: 22px clamp(14px, 4vw, 28px);
       box-shadow: var(--shadow);
       color: var(--card-text);
+      position: relative;
     }
 
-    .big {
-      font-size: clamp(24px, 4.8vw, 36px);
-      font-weight: 800;
-      line-height: 1.2;
-    }
+    .big { font-size: clamp(24px, 4.8vw, 36px); font-weight: 800; line-height: 1.2; }
+    .range, .clock { font-size: clamp(14px, 2.8vw, 18px); opacity: 0.85; margin-top: 10px; }
 
-    .range, .clock {
-      font-size: clamp(14px, 2.8vw, 18px);
-      opacity: 0.85;
-      margin-top: 10px;
-    }
-
-    .badge {
-      display: inline-block;
-      background: var(--accent);
-      color: #fff;
-      font-weight: 700;
-      padding: 6px 10px;
-      border-radius: 999px;
-      margin-top: 12px;
-      box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+    /* Display TZ toggle */
+    .tz-toggle {
+      position: absolute; top: 10px; right: 10px;
+      background: var(--accent); color: #fff; border: none;
+      font-weight: 800; border-radius: 999px; padding: 6px 10px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.15); cursor: pointer;
       letter-spacing: 0.2px;
     }
-
-    .footer {
-      margin-top: 18px;
-      font-size: 12px;
-      opacity: 0.85;
-      color: #2e1f47;
+    .tz-menu {
+      position: absolute; top: 44px; right: 10px;
+      background: #fff; color: #1f1236; border-radius: 12px;
+      border: 2px solid var(--ring); box-shadow: var(--shadow);
+      display: none; min-width: 160px; overflow: hidden;
     }
+    .tz-item {
+      padding: 10px 12px; text-align: left; cursor: pointer; font-weight: 700;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .tz-item:last-child { border-bottom: none; }
+    .tz-item:hover { background: #f3ecff; }
 
-    /* Respect reduced-motion */
+    .footer { margin-top: 18px; font-size: 12px; opacity: 0.85; color: #2e1f47; }
+
     @media (prefers-reduced-motion: no-preference) {
       .fade { animation: fade 400ms ease-out; }
       @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -101,21 +93,25 @@
     <div class="spacer-lg"></div>
 
     <div class="card fade">
+      <!-- Display timezone toggle -->
+      <button id="tzToggle" class="tz-toggle" aria-haspopup="true" aria-expanded="false">California</button>
+      <div id="tzMenu" class="tz-menu" role="menu" aria-label="Display timezone">
+        <div class="tz-item" data-tz="CA" role="menuitem">California</div>
+        <div class="tz-item" data-tz="CHI" role="menuitem">Chicago</div>
+      </div>
+
       <div id="status" class="big">Loading…</div>
       <div id="range" class="range">—</div>
       <div id="clock" class="clock">—</div>
-      <div id="badge" class="badge" hidden>America/Los_Angeles</div>
     </div>
 
-    <div class="footer">Edit the schedule inside the &lt;script&gt; if your classes change. Weekends show “She's locked asf” all day.</div>
+    <div class="footer">Schedule is anchored to California time. Use the button to view times in another city.</div>
   </div>
 
   <script>
-    // ======= CONFIG: Weekly schedule (America/Los_Angeles) =======
-    // Use 24h "HH:MM" for start/end. Times are inclusive of start, exclusive of end.
-    // Note: Your message said "11AM - 12:15 AM"; assuming you meant 12:15 PM. Adjust below if not.
+    // ======= CONFIG: Weekly schedule (anchored to California) =======
+    // Use 24h "HH:MM" for start/end. Start inclusive, end exclusive.
     const schedule = {
-      // 0=Sunday ... 6=Saturday (matching JS Date.getDay())
       1: [ // Monday
         { name: "Chemistry",           start: "10:00", end: "10:50" },
         { name: "Intro to Psychology", start: "11:00", end: "12:15" },
@@ -142,59 +138,52 @@
 
     const lockedPhrase = "She's locked asf";
 
-    // ======= Helpers =======
-    const TZ = "America/Los_Angeles"; // enforce LA time regardless of device timezone
+    // Base timezone for schedule logic
+    const BASE_TZ = "America/Los_Angeles"; // California
 
-    function nowInTZ() {
-      // Build a Date representing the current time in the target timezone.
-      // We can use Intl to derive components reliably.
+    // Display timezone state (CA = California display, CHI = Chicago display)
+    const DISPLAY_OPTS = {
+      CA: { label: "California", offsetMinutesFromCA: 0 },
+      CHI:{ label: "Chicago",    offsetMinutesFromCA: 120 } // PT -> CT is +2 hours
+    };
+    let displayKey = localStorage.getItem("displayTZ") || "CA";
+
+    // ======= Helpers =======
+    function nowInTZ(tz){
+      // Build a Date whose H/M reflect the given timezone (for labeling/comparisons only)
       const fmt = new Intl.DateTimeFormat("en-US", {
-        timeZone: TZ,
+        timeZone: tz,
         year: "numeric", month: "2-digit", day: "2-digit",
         hour: "2-digit", minute: "2-digit", second: "2-digit",
         hour12: false
       });
       const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));
-      // YYYY-MM-DDTHH:mm:ss in TZ
       return new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`);
     }
 
-    function toMinutes(hhmm) {
-      const [h, m] = hhmm.split(":").map(Number);
-      return h * 60 + m;
+    function toMinutes(hhmm){ const [h, m] = hhmm.split(":").map(Number); return h*60 + m; }
+    function minutesSinceMidnight(d){ return d.getHours() * 60 + d.getMinutes(); }
+    function pad(n){ return n.toString().padStart(2, "0"); }
+    function fmt12(h24, m){ const am = h24 < 12; const h12 = ((h24 + 11) % 12) + 1; return `${h12}:${pad(m)} ${am ? "AM" : "PM"}`; }
+
+    // Convert a California wall-time "HH:MM" to display zone by adding fixed offset minutes
+    function convertFromCA(hhmm){
+      const mins = toMinutes(hhmm) + DISPLAY_OPTS[displayKey].offsetMinutesFromCA;
+      const norm = ((mins % (24*60)) + (24*60)) % (24*60); // wrap around
+      const h = Math.floor(norm/60), m = norm % 60;
+      return fmt12(h, m);
     }
 
-    function minutesSinceMidnight(d) {
-      return d.getHours() * 60 + d.getMinutes();
+    // Display range in selected zone, while keeping schedule anchored to CA
+    function fmtRangeDisplay(startHHMM, endHHMM){
+      return `${convertFromCA(startHHMM)} – ${convertFromCA(endHHMM)}`;
     }
 
-    function pad(n) { return n.toString().padStart(2, "0"); }
-
-    function format12h(h24, m) {
-      const am = h24 < 12;
-      const h12 = ((h24 + 11) % 12) + 1;
-      return `${h12}:${pad(m)} ${am ? "AM" : "PM"}`;
+    function weekdayNameInTZ(d, tz){
+      return new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: tz }).format(d);
     }
 
-    function formatRange(startHHMM, endHHMM) {
-      const [sh, sm] = startHHMM.split(":").map(Number);
-      const [eh, em] = endHHMM.split(":").map(Number);
-      return `${format12h(sh, sm)} – ${format12h(eh, em)}`;
-    }
-
-    function weekdayName(d) {
-      return new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: TZ }).format(d);
-    }
-
-    // ======= Core update =======
-    const dayLabelEl = document.getElementById("dayLabel");
-    const statusEl   = document.getElementById("status");
-    const rangeEl    = document.getElementById("range");
-    const clockEl    = document.getElementById("clock");
-    const badgeEl    = document.getElementById("badge");
-    badgeEl.textContent = TZ;
-
-    function currentBlockFor(dayIndex, minutes) {
+    function currentBlockForCA(dayIndex, minutes){
       const blocks = schedule[dayIndex] || [];
       for (const b of blocks) {
         const s = toMinutes(b.start);
@@ -204,43 +193,78 @@
       return null;
     }
 
-    function update() {
-      const now = nowInTZ();
-      const dayIndex = now.getDay(); // 0..6
-      const mins = minutesSinceMidnight(now);
+    // ======= DOM =======
+    const dayLabelEl = document.getElementById("dayLabel");
+    const statusEl   = document.getElementById("status");
+    const rangeEl    = document.getElementById("range");
+    const clockEl    = document.getElementById("clock");
+    const tzToggle   = document.getElementById("tzToggle");
+    const tzMenu     = document.getElementById("tzMenu");
 
-      dayLabelEl.textContent = weekdayName(now);
-
-      const block = currentBlockFor(dayIndex, mins);
-      if (block) {
-        statusEl.textContent = `${block.name}`;
-        rangeEl.textContent  = `${formatRange(block.start, block.end)}`;
-      } else {
-        statusEl.textContent = lockedPhrase;
-        // Show the next upcoming class range for context (optional). If none, say none today.
-        const upcoming = (schedule[dayIndex] || []).find(b => mins < toMinutes(b.end));
-        rangeEl.textContent = upcoming
-          ? `Next: ${upcoming.name} • ${formatRange(upcoming.start, upcoming.end)}`
-          : `No classes today`;
-      }
-
-      // Live clock in LA time
-      const t = new Intl.DateTimeFormat("en-US", {
-        timeZone: TZ,
-        hour: "2-digit", minute: "2-digit", second: "2-digit",
-        hour12: true
-      }).format(now);
-      const date = new Intl.DateTimeFormat("en-US", {
-        timeZone: TZ,
-        month: "short", day: "2-digit", year: "numeric"
-      }).format(now);
-      clockEl.textContent = `${date} • ${t}`;
+    function updateToggleUI(){
+      tzToggle.textContent = DISPLAY_OPTS[displayKey].label;
+      tzToggle.setAttribute("aria-expanded", tzMenu.style.display === "block");
     }
 
-    // Kick it off
+    function openMenu(show){
+      tzMenu.style.display = show ? "block" : "none";
+      updateToggleUI();
+    }
+
+    tzToggle.addEventListener("click", () => {
+      openMenu(tzMenu.style.display !== "block");
+    });
+
+    tzMenu.addEventListener("click", (e) => {
+      const item = e.target.closest(".tz-item");
+      if(!item) return;
+      displayKey = item.dataset.tz;
+      localStorage.setItem("displayTZ", displayKey);
+      openMenu(false);
+      update(); // re-render with new display zone
+    });
+
+    // Close menu if clicking outside
+    document.addEventListener("click", (e) => {
+      if (!tzMenu.contains(e.target) && e.target !== tzToggle) openMenu(false);
+    });
+
+    function update(){
+      // 1) Determine the "now" in California for class logic
+      const nowCA = nowInTZ(BASE_TZ);
+      const dayIndexCA = nowCA.getDay();                // 0..6 in CA
+      const minsCA = minutesSinceMidnight(nowCA);       // minutes since midnight CA
+
+      // 2) Day label + clock shown in the *display* zone for vibe
+      const displayLabelTZ = (displayKey === "CA") ? BASE_TZ : "America/Chicago";
+      const dayName = weekdayNameInTZ(new Date(), displayLabelTZ);
+      dayLabelEl.textContent = dayName;
+
+      const timeStr = new Intl.DateTimeFormat("en-US", {
+        timeZone: displayLabelTZ,
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true
+      }).format(new Date());
+      clockEl.textContent = timeStr;
+
+      // 3) Figure out current CA class block
+      const block = currentBlockForCA(dayIndexCA, minsCA);
+      if (block) {
+        statusEl.textContent = `${block.name}`;
+        rangeEl.textContent  = `${fmtRangeDisplay(block.start, block.end)} (${DISPLAY_OPTS[displayKey].label})`;
+      } else {
+        statusEl.textContent = lockedPhrase;
+        const upcoming = (schedule[dayIndexCA] || []).find(b => minsCA < toMinutes(b.end));
+        rangeEl.textContent = upcoming
+          ? `Next: ${upcoming.name} • ${fmtRangeDisplay(upcoming.start, upcoming.end)} (${DISPLAY_OPTS[displayKey].label})`
+          : `No classes today`;
+      }
+    }
+
+    // Init
+    updateToggleUI();
     update();
-    // Update often enough to catch minute changes; every 5 seconds is chill and lightweight.
-    setInterval(update, 5000);
+    setInterval(update, 1000);
   </script>
 </body>
 </html>
+
