@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What's She Doin?</title>
+  <style>
+    :root {
+      --bg: #e9d8ff;           /* light purple */
+      --text: #ffffff;         /* white */
+      --card-bg: rgba(255, 255, 255, 0.15);
+      --card-text: #1a102b;    /* deep purple for contrast */
+      --accent: #b388ff;       /* medium purple accent */
+      --shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      display: grid;
+      place-items: center;
+      color: var(--text);
+    }
+
+    .wrap {
+      width: min(780px, 92vw);
+      text-align: center;
+    }
+
+    h1, h2 {
+      margin: 0;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+
+    /* Same size + color for title and day label */
+    h1, h2 { font-size: clamp(28px, 5vw, 42px); color: var(--text); }
+
+    .spacer { height: 14px; }
+    .spacer-lg { height: 22px; }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 2px solid rgba(255,255,255,0.35);
+      border-radius: 20px;
+      padding: 22px clamp(14px, 4vw, 28px);
+      box-shadow: var(--shadow);
+      color: var(--card-text);
+    }
+
+    .big {
+      font-size: clamp(24px, 4.8vw, 36px);
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .range, .clock {
+      font-size: clamp(14px, 2.8vw, 18px);
+      opacity: 0.85;
+      margin-top: 10px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 999px;
+      margin-top: 12px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+      letter-spacing: 0.2px;
+    }
+
+    .footer {
+      margin-top: 18px;
+      font-size: 12px;
+      opacity: 0.85;
+      color: #2e1f47;
+    }
+
+    /* Respect reduced-motion */
+    @media (prefers-reduced-motion: no-preference) {
+      .fade { animation: fade 400ms ease-out; }
+      @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>What's She Doin?</h1>
+    <div class="spacer"></div>
+    <h2 id="dayLabel">Day</h2>
+
+    <div class="spacer-lg"></div>
+
+    <div class="card fade">
+      <div id="status" class="big">Loading…</div>
+      <div id="range" class="range">—</div>
+      <div id="clock" class="clock">—</div>
+      <div id="badge" class="badge" hidden>America/Los_Angeles</div>
+    </div>
+
+    <div class="footer">Edit the schedule inside the &lt;script&gt; if your classes change. Weekends show “She's locked asf” all day.</div>
+  </div>
+
+  <script>
+    // ======= CONFIG: Weekly schedule (America/Los_Angeles) =======
+    // Use 24h "HH:MM" for start/end. Times are inclusive of start, exclusive of end.
+    // Note: Your message said "11AM - 12:15 AM"; assuming you meant 12:15 PM. Adjust below if not.
+    const schedule = {
+      // 0=Sunday ... 6=Saturday (matching JS Date.getDay())
+      1: [ // Monday
+        { name: "Chemistry",           start: "10:00", end: "10:50" },
+        { name: "Intro to Psychology", start: "11:00", end: "12:15" },
+        { name: "Uncanny",             start: "13:15", end: "14:30" },
+      ],
+      2: [ // Tuesday
+        { name: "Reasoning bout Unreasonable", start: "11:00", end: "12:15" },
+      ],
+      3: [ // Wednesday
+        { name: "Chemistry",           start: "10:00", end: "10:50" },
+        { name: "Intro to Psychology", start: "11:00", end: "12:15" },
+        { name: "Uncanny",             start: "13:15", end: "14:30" },
+      ],
+      4: [ // Thursday
+        { name: "Reasoning bout Unreasonable", start: "11:00", end: "12:15" },
+        { name: "Chem Lab",                     start: "13:00", end: "16:00" },
+      ],
+      5: [ // Friday
+        { name: "Chemistry", start: "10:00", end: "10:50" },
+      ],
+      0: [], // Sunday
+      6: [], // Saturday
+    };
+
+    const lockedPhrase = "She's locked asf";
+
+    // ======= Helpers =======
+    const TZ = "America/Los_Angeles"; // enforce LA time regardless of device timezone
+
+    function nowInTZ() {
+      // Build a Date representing the current time in the target timezone.
+      // We can use Intl to derive components reliably.
+      const fmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: TZ,
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        hour12: false
+      });
+      const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));
+      // YYYY-MM-DDTHH:mm:ss in TZ
+      return new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`);
+    }
+
+    function toMinutes(hhmm) {
+      const [h, m] = hhmm.split(":").map(Number);
+      return h * 60 + m;
+    }
+
+    function minutesSinceMidnight(d) {
+      return d.getHours() * 60 + d.getMinutes();
+    }
+
+    function pad(n) { return n.toString().padStart(2, "0"); }
+
+    function format12h(h24, m) {
+      const am = h24 < 12;
+      const h12 = ((h24 + 11) % 12) + 1;
+      return `${h12}:${pad(m)} ${am ? "AM" : "PM"}`;
+    }
+
+    function formatRange(startHHMM, endHHMM) {
+      const [sh, sm] = startHHMM.split(":").map(Number);
+      const [eh, em] = endHHMM.split(":").map(Number);
+      return `${format12h(sh, sm)} – ${format12h(eh, em)}`;
+    }
+
+    function weekdayName(d) {
+      return new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: TZ }).format(d);
+    }
+
+    // ======= Core update =======
+    const dayLabelEl = document.getElementById("dayLabel");
+    const statusEl   = document.getElementById("status");
+    const rangeEl    = document.getElementById("range");
+    const clockEl    = document.getElementById("clock");
+    const badgeEl    = document.getElementById("badge");
+    badgeEl.textContent = TZ;
+
+    function currentBlockFor(dayIndex, minutes) {
+      const blocks = schedule[dayIndex] || [];
+      for (const b of blocks) {
+        const s = toMinutes(b.start);
+        const e = toMinutes(b.end);
+        if (minutes >= s && minutes < e) return b;
+      }
+      return null;
+    }
+
+    function update() {
+      const now = nowInTZ();
+      const dayIndex = now.getDay(); // 0..6
+      const mins = minutesSinceMidnight(now);
+
+      dayLabelEl.textContent = weekdayName(now);
+
+      const block = currentBlockFor(dayIndex, mins);
+      if (block) {
+        statusEl.textContent = `${block.name}`;
+        rangeEl.textContent  = `${formatRange(block.start, block.end)}`;
+      } else {
+        statusEl.textContent = lockedPhrase;
+        // Show the next upcoming class range for context (optional). If none, say none today.
+        const upcoming = (schedule[dayIndex] || []).find(b => mins < toMinutes(b.end));
+        rangeEl.textContent = upcoming
+          ? `Next: ${upcoming.name} • ${formatRange(upcoming.start, upcoming.end)}`
+          : `No classes today`;
+      }
+
+      // Live clock in LA time
+      const t = new Intl.DateTimeFormat("en-US", {
+        timeZone: TZ,
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        hour12: true
+      }).format(now);
+      const date = new Intl.DateTimeFormat("en-US", {
+        timeZone: TZ,
+        month: "short", day: "2-digit", year: "numeric"
+      }).format(now);
+      clockEl.textContent = `${date} • ${t}`;
+    }
+
+    // Kick it off
+    update();
+    // Update often enough to catch minute changes; every 5 seconds is chill and lightweight.
+    setInterval(update, 5000);
+  </script>
+</body>
+</html>
