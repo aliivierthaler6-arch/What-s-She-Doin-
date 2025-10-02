@@ -53,7 +53,7 @@
 
     .title{
       margin:0;
-      font-family:'Pinyon Script', cursive;
+      font-family:'Pinyon Script', cursive; /* title only */
       font-size: clamp(28px, 6vw, 54px);
       font-weight: 400;
       color:#000;
@@ -61,12 +61,13 @@
     }
     #dayLabel{
       margin:8px 0 0 0;
-      font-size: clamp(16px, 3.6vw, 28px);
+      font-size: clamp(16px, 3.6vw, 28px);  /* smaller per your request */
       font-weight: 700;
       letter-spacing:.2px;
       color:#000;
       font-family: 'Inika', serif;
     }
+
     .big{
       font-size: clamp(22px, 4.6vw, 34px);
       font-weight: 700;
@@ -97,33 +98,39 @@
       display:none; min-width: 190px; overflow:hidden;
       text-align:left;
       font-family: 'Inika', serif;
+      z-index: 10;
     }
     .tz-item{ padding:10px 12px; cursor:pointer; font-weight:700; border-bottom:1px solid #00000010; }
     .tz-item:last-child{ border-bottom:none; }
     .tz-item:hover{ background:#f3ecff; }
 
-    /* STICKER: bottom-left slide in/out */
-    .sticker{
-      position: fixed;
-      left: 12px;
-      bottom: -40vh;              /* start off-screen */
-      width: clamp(120px, 22vw, 260px);
-      z-index: 9999;
-      pointer-events: none;
-      opacity: 0;
-      filter: drop-shadow(0 12px 20px rgba(0,0,0,.25));
+    /* Preview controls (optional) */
+    .preview-toggle{
+      position:absolute; top:10px; left:10px;
+      background:#fff; color:#1f1236; border:none; cursor:pointer;
+      font-weight:700; border-radius:999px;
+      padding:6px 12px; box-shadow:0 8px 18px rgba(0,0,0,.12);
+      letter-spacing:.2px;
+      font-family: 'Inika', serif;
+      border:2px solid var(--ring);
     }
-    .sticker.show{ animation: stickerUp 1.4s ease-out forwards; }
-    .sticker.hide{ animation: stickerDown 1.2s ease-in forwards; }
-
-    @keyframes stickerUp{
-      0%   { bottom: -40vh; opacity: 0; transform: translateY(0) }
-      100% { bottom: 14px;  opacity: 1; transform: translateY(0) }
+    .preview-panel{
+      position:absolute; top:48px; left:10px;
+      background:#fff; color:#1f1236;
+      border-radius:12px; border:2px solid var(--ring);
+      box-shadow: var(--shadow);
+      display:none; min-width: 220px; padding:10px;
+      text-align:left; z-index: 10; font-family:'Inika',serif;
     }
-    @keyframes stickerDown{
-      0%   { bottom: 14px;  opacity: 1; transform: translateY(0) }
-      100% { bottom: -40vh; opacity: 0; transform: translateY(0) }
+    .row{ display:flex; gap:8px; align-items:center; margin:6px 0; }
+    select,input[type="time"]{
+      border:1px solid #ddd; border-radius:8px; padding:6px 8px; font-family:'Inika',serif;
     }
+    .btn{
+      background:var(--accent); color:#fff; border:none; border-radius:10px; padding:6px 10px;
+      font-weight:700; cursor:pointer; font-family:'Inika',serif;
+    }
+    .btn.secondary{ background:#eee; color:#1f1236; border:1px solid #ddd; }
 
     @media (prefers-reduced-motion:no-preference){
       .fade{ animation:fade .4s ease-out }
@@ -141,6 +148,32 @@
 
     <!-- Main class/status card -->
     <div class="card fade">
+      <!-- Optional time-travel preview -->
+      <button id="previewToggle" class="preview-toggle" aria-haspopup="true" aria-expanded="false">Preview</button>
+      <div id="previewPanel" class="preview-panel" role="dialog" aria-label="Preview time">
+        <div class="row">
+          <label for="prevDay" style="min-width:70px">Day</label>
+          <select id="prevDay">
+            <option value="0">Sunday</option>
+            <option value="1">Monday</option>
+            <option value="2">Tuesday</option>
+            <option value="3">Wednesday</option>
+            <option value="4">Thursday</option>
+            <option value="5">Friday</option>
+            <option value="6">Saturday</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="prevTime" style="min-width:70px">Time</label>
+          <input id="prevTime" type="time" step="60" value="10:00">
+        </div>
+        <div class="row" style="justify-content:flex-end; gap:8px; margin-top:8px">
+          <button id="applyPreview" class="btn">Apply</button>
+          <button id="clearPreview" class="btn secondary">Live</button>
+        </div>
+      </div>
+
+      <!-- TZ toggle -->
       <button id="tzToggle" class="tz-toggle" aria-haspopup="true" aria-expanded="false">🌴 California</button>
       <div id="tzMenu" class="tz-menu" role="menu" aria-label="Display timezone">
         <div class="tz-item" data-tz="CA" role="menuitem">🌴 California</div>
@@ -152,9 +185,6 @@
       <div id="clock" class="clock">—</div>
     </div>
   </div>
-
-  <!-- STICKER image: update src if you used a different filename -->
-  <img id="chemSticker" class="sticker" src="wmremove-transformed.png" alt="sticker" style="display:none;" />
 
   <script>
     /* ===== Schedule (anchored to California) ===== */
@@ -188,26 +218,39 @@
     let displayKey = localStorage.getItem("displayTZ") || "CA";
 
     // ---------- Helpers ----------
+    function toMinutes(hhmm){ const [h,m]=hhmm.split(":").map(Number); return h*60+m; }
+    function pad(n){ return n.toString().padStart(2,"0"); }
+    function fmt12(h24,m){ const am=h24<12; const h12=((h24+11)%12)+1; return `${h12}:${pad(m)} ${am?"AM":"PM"}`; }
+
     function nowInTZ(tz){
       const fmt = new Intl.DateTimeFormat("en-US", {
         timeZone: tz, year:"numeric", month:"2-digit", day:"2-digit",
         hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false
       });
-      const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));
-      return new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`);
+      const p = Object.fromEntries(fmt.formatToParts(new Date()).map(x=>[x.type,x.value]));
+      return new Date(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`);
     }
-    function toMinutes(hhmm){ const [h,m]=hhmm.split(":").map(Number); return h*60+m; }
     function minutesSinceMidnight(d){ return d.getHours()*60 + d.getMinutes(); }
-    const pad = n => n.toString().padStart(2,"0");
-    function fmt12(h24,m){ const am=h24<12; const h12=((h24+11)%12)+1; return `${h12}:${pad(m)} ${am?"AM":"PM"}`; }
+
     function convertFromCA(hhmm){
       const mins = toMinutes(hhmm) + DISPLAY_OPTS[displayKey].offsetMinutesFromCA;
-      const norm = ((mins % (24*60)) + (24*60)) % (24*60);
+      const norm = ((mins % 1440) + 1440) % 1440;
       const h = Math.floor(norm/60), m = norm % 60;
       return fmt12(h,m);
     }
     function fmtRangeDisplay(startHHMM,endHHMM){ return `${convertFromCA(startHHMM)} – ${convertFromCA(endHHMM)}`; }
-    function weekdayNameInTZ(d,tz){ return new Intl.DateTimeFormat("en-US",{weekday:"long", timeZone:tz}).format(d); }
+
+    const WEEK = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    function displayDayName(dayIdxCA, minsCA){
+      const off = DISPLAY_OPTS[displayKey].offsetMinutesFromCA;
+      const total = minsCA + off;
+      let shift = 0;
+      if (total < 0) shift = -1;
+      else if (total >= 1440) shift = 1;
+      const idx = (dayIdxCA + shift + 7) % 7;
+      return WEEK[idx];
+    }
+
     function currentBlockForCA(dayIndex, minutes){
       const blocks = schedule[dayIndex] || [];
       for (const b of blocks){
@@ -218,81 +261,107 @@
     }
 
     // ---------- DOM ----------
-    const dayLabelEl = document.getElementById("dayLabel");
-    const statusEl   = document.getElementById("status");
-    const rangeEl    = document.getElementById("range");
-    const clockEl    = document.getElementById("clock");
-    const tzToggle   = document.getElementById("tzToggle");
-    const tzMenu     = document.getElementById("tzMenu");
-    const chemSticker= document.getElementById("chemSticker");
+    const dayLabelEl   = document.getElementById("dayLabel");
+    const statusEl     = document.getElementById("status");
+    const rangeEl      = document.getElementById("range");
+    const clockEl      = document.getElementById("clock");
+    const tzToggle     = document.getElementById("tzToggle");
+    const tzMenu       = document.getElementById("tzMenu");
+    const previewToggle= document.getElementById("previewToggle");
+    const previewPanel = document.getElementById("previewPanel");
+    const prevDaySel   = document.getElementById("prevDay");
+    const prevTimeIn   = document.getElementById("prevTime");
+    const applyPreview = document.getElementById("applyPreview");
+    const clearPreview = document.getElementById("clearPreview");
+
+    // ---------- Preview state ----------
+    // preview = { dayIndex, minutes } or null
+    let preview = null;
+
+    // URL param: ?mock=mon-10:00 or ?mock=3-13:15
+    (function readMockParam(){
+      const q = new URLSearchParams(location.search).get("mock");
+      if(!q) return;
+      const s = q.toLowerCase().replace(/\s+/g,'');
+      const days = {sun:0,mon:1,tue:2,wed:3,thu:4,thur:4,fri:5,sat:6};
+      let d = null, t = null;
+      const m1 = s.match(/^([a-z]{3,4})[-@](\d{1,2}:\d{2})$/);
+      const m2 = s.match(/^([0-6])[-@](\d{1,2}:\d{2})$/);
+      if(m1 && days[m1[1]]!==undefined){ d = days[m1[1]]; t = m1[2]; }
+      else if(m2){ d = parseInt(m2[1],10); t = m2[2]; }
+      if(d!==null && t){
+        preview = { dayIndex: d, minutes: toMinutes(t) };
+        prevDaySel.value = String(d);
+        prevTimeIn.value = t.length===5 ? t : ("0"+t);
+      }
+    })();
 
     function updateToggleUI(){
       tzToggle.textContent = DISPLAY_OPTS[displayKey].label;
       tzToggle.setAttribute("aria-expanded", tzMenu.style.display === "block");
+      previewToggle.setAttribute("aria-expanded", previewPanel.style.display === "block");
     }
-    function openMenu(show){
-      tzMenu.style.display = show ? "block" : "none";
+    function openMenu(menu, show){
+      menu.style.display = show ? "block" : "none";
       updateToggleUI();
     }
-    tzToggle.addEventListener("click", () => openMenu(tzMenu.style.display !== "block"));
-    tzMenu.addEventListener("click", (e) => {
-      const item = e.target.closest(".tz-item");
-      if(!item) return;
-      displayKey = item.dataset.tz;
-      localStorage.setItem("displayTZ", displayKey);
-      openMenu(false);
+
+    tzToggle.addEventListener("click", () => openMenu(tzMenu, tzMenu.style.display !== "block"));
+    document.addEventListener("click", (e) => {
+      if (!tzMenu.contains(e.target) && e.target !== tzToggle) openMenu(tzMenu,false);
+      if (!previewPanel.contains(e.target) && e.target !== previewToggle) openMenu(previewPanel,false);
+    });
+
+    previewToggle.addEventListener("click", () => {
+      if (previewPanel.style.display !== "block" && !preview){
+        const nowCA = nowInTZ(BASE_TZ);
+        prevDaySel.value = String(nowCA.getDay());
+        prevTimeIn.value = `${String(nowCA.getHours()).padStart(2,'0')}:${String(nowCA.getMinutes()).padStart(2,'0')}`;
+      }
+      openMenu(previewPanel, previewPanel.style.display !== "block");
+    });
+
+    applyPreview.addEventListener("click", () => {
+      preview = {
+        dayIndex: parseInt(prevDaySel.value,10),
+        minutes: toMinutes(prevTimeIn.value)
+      };
+      openMenu(previewPanel,false);
       update();
     });
-    document.addEventListener("click", (e) => {
-      if (!tzMenu.contains(e.target) && e.target !== tzToggle) openMenu(false);
+    clearPreview.addEventListener("click", () => {
+      preview = null;
+      openMenu(previewPanel,false);
+      update();
     });
 
-    // ---------- Sticker control ----------
-    let stickerState = "hidden"; // "hidden" | "showing" | "hiding"
-    function showSticker(){
-      if (stickerState === "showing") return;
-      chemSticker.style.display = "block";
-      chemSticker.classList.remove("hide");
-      chemSticker.classList.add("show");
-      stickerState = "showing";
-    }
-    function hideSticker(){
-      if (stickerState === "hidden" || stickerState === "hiding") return;
-      chemSticker.classList.remove("show");
-      chemSticker.classList.add("hide");
-      stickerState = "hiding";
-    }
-    chemSticker.addEventListener("animationend", (e) => {
-      if (e.animationName === "stickerDown"){
-        chemSticker.style.display = "none";
-        stickerState = "hidden";
-      }
-    });
-
+    // ---------- Main update ----------
     function update(){
-      // Logic time in California
-      const nowCA = nowInTZ(BASE_TZ);
-      const dayIndexCA = nowCA.getDay();
-      const minsCA = minutesSinceMidnight(nowCA);
+      // Determine CA "now" for logic, possibly previewed
+      let dayIndexCA, minsCA;
+      if (preview){
+        dayIndexCA = preview.dayIndex;
+        minsCA = preview.minutes;
+      } else {
+        const nowCA = nowInTZ(BASE_TZ);
+        dayIndexCA = nowCA.getDay();
+        minsCA = minutesSinceMidnight(nowCA);
+      }
 
-      // Day label + live clock in selected display zone
-      const dispTZ = DISPLAY_OPTS[displayKey].tz;
-      dayLabelEl.textContent = weekdayNameInTZ(new Date(), dispTZ);
-      const t = new Intl.DateTimeFormat("en-US", {
-        timeZone: dispTZ, hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:true
-      }).format(new Date());
-      clockEl.textContent = t;
+      // Day label & clock in display zone (derived from CA + offset)
+      const off = DISPLAY_OPTS[displayKey].offsetMinutesFromCA;
+      const dispTotal = ((minsCA + off) % 1440 + 1440) % 1440;
+      const WEEK = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      // adjust label across midnight boundaries
+      let shift = 0;
+      if (minsCA + off < 0) shift = -1;
+      else if (minsCA + off >= 1440) shift = 1;
+      dayLabelEl.textContent = WEEK[(dayIndexCA + shift + 7) % 7];
+      clockEl.textContent = fmt12(Math.floor(dispTotal/60), dispTotal % 60);
 
+      // Find current/next blocks (logic in CA)
       const blocks = schedule[dayIndexCA] || [];
       const block  = currentBlockForCA(dayIndexCA, minsCA);
-
-      // Sticker only during Chemistry or Chem Lab
-      const stickerClasses = ["Chemistry","Chem Lab"];
-      if (block && stickerClasses.includes(block.name)){
-        showSticker();
-      } else {
-        hideSticker();
-      }
 
       if (block){
         statusEl.textContent = block.name;
@@ -314,11 +383,22 @@
       }
     }
 
+    // Timezone menu
+    tzMenu.addEventListener("click", (e) => {
+      const item = e.target.closest(".tz-item");
+      if(!item) return;
+      displayKey = item.dataset.tz;
+      localStorage.setItem("displayTZ", displayKey);
+      openMenu(tzMenu,false);
+      update();
+    });
+
+    // Kick it off
     updateToggleUI();
     update();
-    setInterval(update, 1000);
+    // Live clock if not previewing
+    setInterval(() => { if(!preview) update(); }, 1000);
   </script>
 </body>
 </html>
-
 
