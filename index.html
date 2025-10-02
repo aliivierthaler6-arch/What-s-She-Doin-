@@ -13,7 +13,7 @@
       --bg1:#eddcff;
       --bg2:#dcc6ff;
       --card-bg: rgba(255,255,255,0.16);
-      --ink:#1b1330;                /* body text */
+      --ink:#1b1330;
       --ring: rgba(255,255,255,0.45);
       --accent:#b388ff;
       --shadow: 0 12px 30px rgba(20,10,40,.18);
@@ -23,13 +23,11 @@
     html, body { height: 100%; }
     body{
       margin:0;
-
       /* Hearts background — crisp SVG + fill-opacity (darker than text) */
       background:
         url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 24 24'><path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 6 4.02 4 6.5 4c1.73 0 3.39 1 4.2 2.43C11.51 5 13.17 4 14.9 4 17.38 4 19.4 6 19.4 8.5c0 3.78-3.41 6.86-8.55 11.53L12 21.35z' fill='%23100a22' fill-opacity='0.26'/></svg>") repeat,
         linear-gradient(160deg,var(--bg1),var(--bg2));
       background-size: 36px 36px, auto;
-
       color:var(--ink);
       font-family: 'Inika', serif;
       display:grid;
@@ -37,9 +35,18 @@
       padding:24px;
     }
 
-    .wrap{ width:min(840px,95vw); text-align:center; }
+    /* Wiggle trigger */
+    body.hearts-wiggle {
+      animation: heartsWiggle .36s ease-in-out 3;
+    }
+    @keyframes heartsWiggle{
+      0%   { background-position:   0 0,   0 0; }
+      50%  { background-position:  12px 0, 0 0; }
+      100% { background-position:   0 0,   0 0; }
+    }
 
-    /* Shared card (header + main) */
+    .wrap{ width:min(840px,95vw); text-align:center; position:relative; z-index:1; }
+
     .card{
       background:var(--card-bg);
       backdrop-filter: blur(8px);
@@ -56,7 +63,7 @@
 
     .title{
       margin:0;
-      font-family:'Pinyon Script', cursive; /* title only */
+      font-family:'Pinyon Script', cursive;
       font-size: clamp(28px, 6vw, 54px);
       font-weight: 400;
       color:#000;
@@ -64,7 +71,7 @@
     }
     #dayLabel{
       margin:8px 0 0 0;
-      font-size: clamp(16px, 3.6vw, 28px);  /* smaller for cohesion */
+      font-size: clamp(16px, 3.6vw, 28px);
       font-weight: 700;
       letter-spacing:.2px;
       color:#000;
@@ -75,15 +82,18 @@
       font-size: clamp(22px, 4.6vw, 34px);
       font-weight: 700;
       line-height: 1.25;
+      cursor: default; /* we'll change to pointer when clickable */
     }
+    .big.clickable { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+
     .range, .clock{
       font-size: clamp(14px, 2.6vw, 18px);
       opacity: 0.95;
-      margin-top: 10px;
+      margin-top:10px;
       font-weight: 400;
     }
 
-    /* TZ toggle with emojis */
+    /* TZ toggle */
     .tz-toggle{
       position:absolute; top:10px; right:10px;
       background: var(--accent);
@@ -101,11 +111,31 @@
       display:none; min-width: 190px; overflow:hidden;
       text-align:left;
       font-family: 'Inika', serif;
-      z-index: 10;
+      z-index: 20;
     }
     .tz-item{ padding:10px 12px; cursor:pointer; font-weight:700; border-bottom:1px solid #00000010; }
     .tz-item:last-child{ border-bottom:none; }
     .tz-item:hover{ background:#f3ecff; }
+
+    /* FX overlay for Konami burst */
+    .fx-layer{
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      overflow: hidden;
+    }
+    .kiss{
+      position: absolute;
+      top: -10vh;
+      will-change: transform, opacity;
+      animation: fall 5s linear forwards;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,.15));
+    }
+    @keyframes fall{
+      0%   { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(120vh) translateX(var(--drift, 0px)) rotate(var(--rot, 0deg)); opacity: 0.9; }
+    }
 
     @media (prefers-reduced-motion:no-preference){
       .fade{ animation:fade .4s ease-out }
@@ -114,8 +144,8 @@
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <!-- Header card: Title + Day (same card) -->
+  <div class="wrap" id="widgetRoot" tabindex="0" aria-label="Class widget">
+    <!-- Header card: Title + Day -->
     <div class="card header-card fade">
       <h1 class="title">Where the fuck is my girlfriend?</h1>
       <h2 id="dayLabel">Loading…</h2>
@@ -158,7 +188,7 @@
       0: [], 6: []
     };
 
-    const lockedPhrase = "She's locked asf";
+    const lockedBase = "She's locked asf";
     const BASE_TZ = "America/Los_Angeles";
 
     // Display timezones (labels + offsets from California wall time)
@@ -192,6 +222,16 @@
     }
     function fmtRangeDisplay(startHHMM,endHHMM){ return `${convertFromCA(startHHMM)} – ${convertFromCA(endHHMM)}`; }
 
+    // Emojis for classes
+    function decorate(name){
+      if (/^Chemistry$/i.test(name)) return "🧬 Chemistry";
+      if (/^Chem Lab$/i.test(name)) return "🧪 Chem Lab";
+      if (/^Intro to Psychology$/i.test(name)) return "🧠 Intro to Psychology";
+      if (/^Uncanny$/i.test(name)) return "👁️‍🗨️ Uncanny";
+      if (/^Reasoning/i.test(name)) return "🐔 Reasoning ’bout Unreasonable";
+      return name;
+    }
+
     function currentBlockForCA(dayIndex, minutes){
       const blocks = schedule[dayIndex] || [];
       for (const b of blocks){
@@ -202,12 +242,13 @@
     }
 
     // ---------- DOM ----------
-    const dayLabelEl = document.getElementById("dayLabel");
-    const statusEl   = document.getElementById("status");
-    const rangeEl    = document.getElementById("range");
-    const clockEl    = document.getElementById("clock");
-    const tzToggle   = document.getElementById("tzToggle");
-    const tzMenu     = document.getElementById("tzMenu");
+    const root      = document.getElementById("widgetRoot");
+    const dayLabelEl= document.getElementById("dayLabel");
+    const statusEl  = document.getElementById("status");
+    const rangeEl   = document.getElementById("range");
+    const clockEl   = document.getElementById("clock");
+    const tzToggle  = document.getElementById("tzToggle");
+    const tzMenu    = document.getElementById("tzMenu");
 
     function updateToggleUI(){
       tzToggle.textContent = DISPLAY_OPTS[displayKey].label;
@@ -230,50 +271,197 @@
       if (!tzMenu.contains(e.target) && e.target !== tzToggle) openMenu(false);
     });
 
+    // ---------- Locked quip rotation ----------
+    const LOCKED_QUIPS = [
+      "IDK but did you know Tame Impala is only one guy?!",
+      "Probably not her homework.",
+      "She’s hydrating aggressively",
+      "She’s calibrating the vibesometer.",
+      "Learning things to tell you first.",
+      "She’s thinking about you I can’t lie",
+      "Bro… She’s still just missing you",
+      "You wouldn’t believe me if I told you.",
+      "Straight Jorkin it",
+      "She’s watching you through your computer (lovingly)",
+      "Can’t tell you that. It’s top-secret.",
+      "Counting down the minutes until she can see you again.",
+      "Imagining what she would look like if she was a worm",
+      "Mentally in Chicago, physically in Pitzer",
+      "Plot twist: she’s actually studying",
+      "nvm she’s on her phone watching reels",
+      "Snacking on some feminist literature (She’s 6’2 btw);)",
+      "She’s Pondering",
+      "She’s hitting her vape in the bathroom",
+      "Explaining the entire timeline of how they caught Osama Bin Laden."
+    ];
+    // -1 = show lockedBase; otherwise show LOCKED_QUIPS[index]
+    let lockedIndex = -1;
+
+    statusEl.addEventListener("click", () => {
+      if (!isLockedNow) return; // only rotate when locked
+      lockedIndex++;
+      if (lockedIndex >= LOCKED_QUIPS.length) lockedIndex = -1; // loop back to base phrase
+      renderLockedLine(); // update immediately on click
+    });
+
+    function renderLockedLine(){
+      statusEl.classList.add("clickable");
+      if (lockedIndex === -1) {
+        statusEl.textContent = lockedBase;
+      } else {
+        statusEl.textContent = LOCKED_QUIPS[lockedIndex];
+      }
+    }
+
+    // ---------- State and update ----------
+    let isLockedNow = false;
+
     function update(){
       // Logic time: California
       const nowCA = nowInTZ(BASE_TZ);
       const dayIndexCA = nowCA.getDay();
       const minsCA = minutesSinceMidnight(nowCA);
 
-      // Day label + live clock in display zone (simple + robust)
+      // Day label + live clock in selected display zone
       const dispTZ = DISPLAY_OPTS[displayKey].tz;
       dayLabelEl.textContent = new Intl.DateTimeFormat("en-US", { weekday:"long", timeZone: dispTZ }).format(new Date());
       clockEl.textContent = new Intl.DateTimeFormat("en-US", {
         timeZone: dispTZ, hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:true
       }).format(new Date());
 
-      // Determine current/next class (logic in CA)
+      // Determine class state (logic in CA)
       const blocks = schedule[dayIndexCA] || [];
       const block  = currentBlockForCA(dayIndexCA, minsCA);
 
       if (block){
-        statusEl.textContent = block.name;
+        isLockedNow = false;
+        statusEl.classList.remove("clickable");
+        statusEl.textContent = decorate(block.name);
         rangeEl.textContent  = `${fmtRangeDisplay(block.start, block.end)} (${DISPLAY_OPTS[displayKey].label})`;
       } else {
+        isLockedNow = true;
+        renderLockedLine();
+
         // Next class later today?
         const next = blocks.find(b => minsCA < toMinutes(b.start));
         if (next){
-          statusEl.textContent = lockedPhrase;
-          rangeEl.textContent  = `Next Class: ${next.name} • ${fmtRangeDisplay(next.start, next.end)} (${DISPLAY_OPTS[displayKey].label})`;
+          rangeEl.textContent  = `Next Class: ${decorate(next.name)} • ${fmtRangeDisplay(next.start, next.end)} (${DISPLAY_OPTS[displayKey].label})`;
         } else {
-          // If the day had classes but all are over:
-          if (blocks.length > 0){
-            statusEl.textContent = "All Done With Classes! 🎉";
-            rangeEl.textContent  = "";
-          } else {
-            // e.g., weekend
-            statusEl.textContent = lockedPhrase;
-            rangeEl.textContent  = "";
-          }
+          rangeEl.textContent  = ""; // after last class or weekend: just locked
         }
       }
     }
 
-    // Init + live tick
     updateToggleUI();
     update();
     setInterval(update, 1000);
+
+    // ================================
+    // Konami & L-hold (widget-scoped)
+    // ================================
+    let isHovering = false;
+    let tapActive = false;
+    let tapTimer = null;
+    root.addEventListener("mouseenter", ()=>{ isHovering = true; });
+    root.addEventListener("mouseleave", ()=>{ isHovering = false; });
+    root.addEventListener("pointerdown", ()=>{
+      tapActive = true;
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(()=>{ tapActive = false; }, 8000); // 8s grace after tap
+    });
+    // make root focusable (tabindex already set). focus sets a short grace.
+    root.addEventListener("focusin", ()=>{
+      tapActive = true;
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(()=>{ tapActive = false; }, 8000);
+    });
+
+    function widgetActive(){
+      return isHovering || tapActive;
+    }
+
+    // Konami sequence detection
+    const KONAMI = ["ArrowUp","ArrowUp","ArrowDown","ArrowDown","ArrowLeft","ArrowRight","ArrowLeft","ArrowRight","b","a"];
+    let buffer = [];
+
+    document.addEventListener("keydown", (e) => {
+      if (!widgetActive()) return;
+
+      // L-hold handling (start timer on first press)
+      if (e.key.toLowerCase() === "l") handleLHoldStart();
+
+      // Konami
+      const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; // normalize letters
+      buffer.push(k);
+      if (buffer.length > KONAMI.length) buffer.shift();
+
+      const match = KONAMI.every((v, i) => {
+        const kk = v.length === 1 ? v.toLowerCase() : v;
+        return buffer[i] === kk;
+      });
+      if (match) {
+        triggerKissBurst();
+        buffer = []; // reset
+      }
+    });
+
+    document.addEventListener("keyup", (e)=>{
+      if (e.key.toLowerCase() === "l") handleLHoldEnd();
+    });
+
+    // ----- L hold for 3s -> wiggle hearts 3x
+    let lHoldTimer = null;
+    let lHolding = false;
+    function handleLHoldStart(){
+      if (lHolding) return;
+      lHolding = true;
+      clearTimeout(lHoldTimer);
+      lHoldTimer = setTimeout(()=>{
+        if (widgetActive()){
+          document.body.classList.add("hearts-wiggle");
+          // remove class after animation completes (~1.08s)
+          setTimeout(()=>document.body.classList.remove("hearts-wiggle"), 1200);
+        }
+        lHolding = false;
+      }, 3000); // 3 seconds
+    }
+    function handleLHoldEnd(){
+      clearTimeout(lHoldTimer);
+      lHolding = false;
+    }
+
+    // ----- Kiss/heart burst (5s fall)
+    function triggerKissBurst(){
+      const layer = document.createElement("div");
+      layer.className = "fx-layer";
+      layer.setAttribute("aria-hidden", "true");
+      document.body.appendChild(layer);
+
+      const EMOJIS = ["❤️","💋"];
+      const count = 60; // number of particles
+      const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+
+      for (let i=0;i<count;i++){
+        const span = document.createElement("span");
+        span.className = "kiss";
+        span.textContent = EMOJIS[Math.random()<0.6 ? 0 : 1]; // more hearts than kisses
+        const left = Math.random()*vw;
+        const size = 16 + Math.random()*28; // 16-44px
+        const delay = Math.random()*0.35;   // slight staggering
+        const drift = (Math.random()*160 - 80) + "px"; // left/right drift
+        const rot   = (Math.random()*360 - 180) + "deg";
+
+        span.style.left = left + "px";
+        span.style.fontSize = size + "px";
+        span.style.animationDelay = delay + "s";
+        span.style.setProperty("--drift", drift);
+        span.style.setProperty("--rot", rot);
+
+        layer.appendChild(span);
+      }
+
+      setTimeout(()=>{ layer.remove(); }, 5200); // cleanup
+    }
   </script>
 </body>
 </html>
