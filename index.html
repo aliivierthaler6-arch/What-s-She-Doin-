@@ -23,7 +23,7 @@
     html, body { height: 100%; }
     body{
       margin:0;
-      /* Static heart wallpaper + gradient */
+      /* Heart wallpaper + gradient */
       background:
         url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 24 24'><path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 6 4.02 4 6.5 4c1.73 0 3.39 1 4.2 2.43C11.51 5 13.17 4 14.9 4 17.38 4 19.4 6 19.4 8.5c0 3.78-3.41 6.86-8.55 11.53L12 21.35z' fill='%23100a22' fill-opacity='0.26'/></svg>") repeat,
         linear-gradient(160deg,var(--bg1),var(--bg2));
@@ -39,7 +39,7 @@
     body.hearts-pulse { animation: heartsPulse 1s ease-in-out 3; }
     @keyframes heartsPulse {
       0%,100% { background-size: 36px 36px, auto; }
-      50%     { background-size: 44px 44px, auto; } /* grow hearts at mid-pulse */
+      50%     { background-size: 44px 44px, auto; }
     }
 
     .wrap{ width:min(840px,95vw); text-align:center; position:relative; z-index:1; }
@@ -358,7 +358,7 @@
     setInterval(update, 1000);
 
     // ================================
-    // Konami & L-hold (widget-scoped)
+    // Konami & L-hold (widget-scoped), with capture to beat global easter eggs
     // ================================
     let isHovering = false;
     let tapActive = false;
@@ -377,34 +377,45 @@
     });
     function widgetActive(){ return isHovering || tapActive; }
 
-    // Konami sequence detection
+    // Konami sequence
     const KONAMI = ["ArrowUp","ArrowUp","ArrowDown","ArrowDown","ArrowLeft","ArrowRight","ArrowLeft","ArrowRight","b","a"];
+    const KONAMI_KEYS = new Set(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","b","a"]);
     let buffer = [];
 
-    document.addEventListener("keydown", (e) => {
+    // CAPTURING listener: tries to swallow Konami keys while widget is active
+    window.addEventListener("keydown", (e) => {
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      const normalized = (e.key.length === 1 ? e.key.toLowerCase() : e.key);
+
+      if (widgetActive() && KONAMI_KEYS.has(normalized)) {
+        // stop other scripts (and many extensions) from seeing these keys
+        e.stopImmediatePropagation?.();
+        e.stopPropagation();
+        e.preventDefault();
+      }
+
       if (!widgetActive()) return;
 
       // L-hold start
-      if (e.key.toLowerCase() === "l") handleLHoldStart();
+      if (key === "l") handleLHoldStart();
 
-      // Konami
-      const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; // normalize letters
-      buffer.push(k);
+      // track sequence
+      buffer.push(normalized);
       if (buffer.length > KONAMI.length) buffer.shift();
 
       const match = KONAMI.every((v, i) => {
-        const kk = v.length === 1 ? v.toLowerCase() : v;
-        return buffer[i] === kk;
+        const expect = v.length === 1 ? v.toLowerCase() : v;
+        return buffer[i] === expect;
       });
       if (match) {
         triggerKissStorm();
         buffer = []; // reset
       }
-    });
+    }, true); // <-- capture
 
-    document.addEventListener("keyup", (e)=>{
+    window.addEventListener("keyup", (e)=>{
       if (e.key.toLowerCase() === "l") handleLHoldEnd();
-    });
+    }, true); // capture to swallow if needed
 
     // ----- L hold for 3s -> pulse BACKGROUND hearts 3x (1s each)
     let lHoldTimer = null;
@@ -416,7 +427,6 @@
       lHoldTimer = setTimeout(()=>{
         if (widgetActive()){
           document.body.classList.add("hearts-pulse");
-          // remove after 3 pulses (3s) + tiny buffer
           setTimeout(()=>document.body.classList.remove("hearts-pulse"), 3200);
         }
         lHolding = false;
@@ -440,7 +450,6 @@
       const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
 
       const tick = () => {
-        // spawn a small burst each tick
         const burstCount = 12 + Math.floor(Math.random()*10); // 12–21 per burst
         for (let i=0;i<burstCount;i++){
           const span = document.createElement("span");
@@ -449,8 +458,8 @@
 
           const left = Math.random()*vw;
           const size = 16 + Math.random()*28; // 16–44px
-          const delay = Math.random()*0.25;   // slight staggering
-          const drift = (Math.random()*200 - 100) + "px"; // left/right drift
+          const delay = Math.random()*0.25;
+          const drift = (Math.random()*200 - 100) + "px";
           const rot   = (Math.random()*360 - 180) + "deg";
           const fallDur = (3.8 + Math.random()*1.8).toFixed(2) + "s"; // 3.8–5.6s
 
@@ -471,7 +480,6 @@
 
       let stormTimer = setTimeout(tick, 0);
 
-      // cleanup after last falls complete
       setTimeout(()=>{
         clearTimeout(stormTimer);
         setTimeout(()=>layer.remove(), 1800);
@@ -480,4 +488,6 @@
   </script>
 </body>
 </html>
+
+
 
