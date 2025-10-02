@@ -5,81 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Where the fuck is my girlfriend?</title>
 
-  <!-- Google Fonts: Pinyon Script (title) + Zain (day) -->
-  <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Zain:wght@700;900&display=swap" rel="stylesheet">
+  <!-- Fonts: Pinyon Script (title), Inika (everything else) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inika:wght@400;700&family=Pinyon+Script&display=swap" rel="stylesheet">
 
   <style>
     :root {
-      --bg1:#eddcff;            /* pastel lavender */
+      --bg1:#eddcff;
       --bg2:#dcc6ff;
       --card-bg: rgba(255,255,255,0.16);
-      --ink:#1b1330;            /* deep purple for body text */
+      --ink:#1b1330;
       --ring: rgba(255,255,255,0.45);
       --accent:#b388ff;
       --shadow: 0 12px 30px rgba(20,10,40,.18);
-      --title-box:#ffffffea;    /* box behind title */
-      --day-box:#ffffffea;      /* box behind day */
     }
 
     * { box-sizing: border-box; }
     html, body { height: 100%; }
     body{
       margin:0;
-      /* Gradient + tiny repeating SVG hearts */
+      /* darker purple hearts */
       background:
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28'><path d='M14 22s-7-4.7-9.5-8.1c-2.1-2.9-1.1-6.9 2.2-8 1.9-.6 4 .2 5.1 1.7 1.2-1.5 3.3-2.3 5.1-1.7 3.3 1.1 4.3 5.1 2.2 8C21 17.3 14 22 14 22z' fill='%23ffffff22'/></svg>") repeat,
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28'><path d='M14 22s-7-4.7-9.5-8.1c-2.1-2.9-1.1-6.9 2.2-8 1.9-.6 4 .2 5.1 1.7 1.2-1.5 3.3-2.3 5.1-1.7 3.3 1.1 4.3 5.1 2.2 8C21 17.3 14 22 14 22z' fill='%23130a2633'/></svg>") repeat,
         linear-gradient(160deg,var(--bg1),var(--bg2));
       background-size: 28px 28px, auto;
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+      color:var(--ink);
+      font-family: 'Inika', serif;
       display:grid;
       place-items:center;
       padding:24px;
-      color:var(--ink);
     }
 
     .wrap{ width:min(840px,95vw); text-align:center; }
 
-    /* Title + Day with boxes behind */
-    .title-box{
-      display:inline-block;
-      background:var(--title-box);
-      border:2px solid var(--ring);
-      border-radius:18px;
-      padding:10px 14px;
-      box-shadow: var(--shadow);
-    }
-    .title{
-      margin:0;
-      font-family:'Pinyon Script', cursive;
-      font-size: clamp(28px, 6vw, 54px);
-      font-weight: 400;
-      color:#000;               /* black as requested */
-      line-height:1.05;
-    }
-
-    .sp{ height: 14px; }
-    .sp-lg{ height: 22px; }
-
-    .day-box{
-      display:inline-block;
-      background:var(--day-box);
-      border:2px solid var(--ring);
-      border-radius:14px;
-      padding:6px 12px;
-      box-shadow: var(--shadow);
-      margin-top:8px;
-    }
-    #dayLabel{
-      margin:0;
-      font-family:'Zain', system-ui, sans-serif;
-      font-weight:900;                    /* “Black” weight */
-      font-size: clamp(20px, 4.5vw, 36px);
-      letter-spacing:.3px;
-      color:#000;                         /* black day text */
-    }
-
     .card{
-      margin-top:22px;
       background:var(--card-bg);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
@@ -88,29 +46,48 @@
       padding:22px clamp(14px,4vw,28px);
       box-shadow: var(--shadow);
       color:var(--ink);
-      position:relative;
       text-align:center;
+      position:relative;
     }
+    .header-card { margin-bottom: 16px; }
 
+    .title{
+      margin:0;
+      font-family:'Pinyon Script', cursive;
+      font-size: clamp(28px, 6vw, 54px);
+      font-weight: 400;
+      color:#000;
+      line-height:1.05;
+    }
+    #dayLabel{
+      margin:8px 0 0 0;
+      font-size: clamp(16px, 3.6vw, 28px);
+      font-weight: 700;
+      letter-spacing:.2px;
+      color:#000;
+      font-family: 'Inika', serif;
+    }
     .big{
-      font-size: clamp(24px, 4.8vw, 36px);
-      font-weight: 900;
-      line-height: 1.2;
+      font-size: clamp(22px, 4.6vw, 34px);
+      font-weight: 700;
+      line-height: 1.25;
     }
     .range, .clock{
-      font-size: clamp(14px, 2.8vw, 18px);
-      opacity: 0.9;
+      font-size: clamp(14px, 2.6vw, 18px);
+      opacity: 0.95;
       margin-top: 10px;
+      font-weight: 400;
     }
 
-    /* TZ toggle with emojis */
+    /* TZ toggle */
     .tz-toggle{
       position:absolute; top:10px; right:10px;
       background: var(--accent);
       color:#fff; border:none; cursor:pointer;
-      font-weight:800; border-radius:999px;
+      font-weight:700; border-radius:999px;
       padding:6px 12px; box-shadow:0 8px 18px rgba(0,0,0,.15);
       letter-spacing:.2px;
+      font-family: 'Inika', serif;
     }
     .tz-menu{
       position:absolute; top:48px; right:10px;
@@ -119,38 +96,51 @@
       box-shadow: var(--shadow);
       display:none; min-width: 190px; overflow:hidden;
       text-align:left;
+      font-family: 'Inika', serif;
     }
-    .tz-item{ padding:10px 12px; cursor:pointer; font-weight:800; border-bottom:1px solid #00000010; }
+    .tz-item{ padding:10px 12px; cursor:pointer; font-weight:700; border-bottom:1px solid #00000010; }
     .tz-item:last-child{ border-bottom:none; }
     .tz-item:hover{ background:#f3ecff; }
 
-    .footer{ margin-top:16px; font-size:12px; color:#24163ecc; }
+    /* STICKER: bottom-left slide in/out */
+    .sticker{
+      position: fixed;
+      left: 12px;
+      bottom: -40vh;              /* start off-screen */
+      width: clamp(120px, 22vw, 260px);
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0;
+      filter: drop-shadow(0 12px 20px rgba(0,0,0,.25));
+    }
+    .sticker.show{ animation: stickerUp 1.4s ease-out forwards; }
+    .sticker.hide{ animation: stickerDown 1.2s ease-in forwards; }
+
+    @keyframes stickerUp{
+      0%   { bottom: -40vh; opacity: 0; transform: translateY(0) }
+      100% { bottom: 14px;  opacity: 1; transform: translateY(0) }
+    }
+    @keyframes stickerDown{
+      0%   { bottom: 14px;  opacity: 1; transform: translateY(0) }
+      100% { bottom: -40vh; opacity: 0; transform: translateY(0) }
+    }
 
     @media (prefers-reduced-motion:no-preference){
-      .fade{ animation:fade .4s ease-out; }
+      .fade{ animation:fade .4s ease-out }
       @keyframes fade{ from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <!-- Title box -->
-    <div class="title-box">
+    <!-- Header card: Title + Day -->
+    <div class="card header-card fade">
       <h1 class="title">Where the fuck is my girlfriend?</h1>
-    </div>
-
-    <div class="sp"></div>
-
-    <!-- Day box -->
-    <div class="day-box">
       <h2 id="dayLabel">Loading…</h2>
     </div>
 
-    <div class="sp-lg"></div>
-
-    <!-- Main card -->
+    <!-- Main class/status card -->
     <div class="card fade">
-      <!-- Display timezone toggle (with emojis) -->
       <button id="tzToggle" class="tz-toggle" aria-haspopup="true" aria-expanded="false">🌴 California</button>
       <div id="tzMenu" class="tz-menu" role="menu" aria-label="Display timezone">
         <div class="tz-item" data-tz="CA" role="menuitem">🌴 California</div>
@@ -161,13 +151,13 @@
       <div id="range" class="range">—</div>
       <div id="clock" class="clock">—</div>
     </div>
-
-    <div class="footer">Schedule logic stays on California time. Toggle only changes how times display.</div>
   </div>
 
+  <!-- STICKER image: update src if you used a different filename -->
+  <img id="chemSticker" class="sticker" src="wmremove-transformed.png" alt="sticker" style="display:none;" />
+
   <script>
-    // ===== Schedule (anchored to California) =====
-    // 24h "HH:MM"; start inclusive, end exclusive.
+    /* ===== Schedule (anchored to California) ===== */
     const schedule = {
       1: [
         { name: "Chemistry",           start: "10:00", end: "10:50" },
@@ -185,17 +175,15 @@
         { name: "Chem Lab",                     start: "13:00", end: "16:00" },
       ],
       5: [ { name: "Chemistry", start: "10:00", end: "10:50" } ],
-      0: [],  // Sunday
-      6: [],  // Saturday
+      0: [], 6: []
     };
 
     const lockedPhrase = "She's locked asf";
-    const BASE_TZ = "America/Los_Angeles"; // California
+    const BASE_TZ = "America/Los_Angeles";
 
-    // Display timezones (labels + offsets from California wall time)
     const DISPLAY_OPTS = {
       CA: { label: "🌴 California", tz: "America/Los_Angeles", offsetMinutesFromCA: 0 },
-      CHI:{ label: "🫘 Chicago",    tz: "America/Chicago",     offsetMinutesFromCA: 120 }, // PT -> CT is +2h
+      CHI:{ label: "🫘 Chicago",    tz: "America/Chicago",     offsetMinutesFromCA: 120 },
     };
     let displayKey = localStorage.getItem("displayTZ") || "CA";
 
@@ -212,19 +200,14 @@
     function minutesSinceMidnight(d){ return d.getHours()*60 + d.getMinutes(); }
     const pad = n => n.toString().padStart(2,"0");
     function fmt12(h24,m){ const am=h24<12; const h12=((h24+11)%12)+1; return `${h12}:${pad(m)} ${am?"AM":"PM"}`; }
-
-    // Convert a California wall-time "HH:MM" to selected display zone via fixed offset
     function convertFromCA(hhmm){
       const mins = toMinutes(hhmm) + DISPLAY_OPTS[displayKey].offsetMinutesFromCA;
       const norm = ((mins % (24*60)) + (24*60)) % (24*60);
       const h = Math.floor(norm/60), m = norm % 60;
       return fmt12(h,m);
     }
-    function fmtRangeDisplay(startHHMM,endHHMM){
-      return `${convertFromCA(startHHMM)} – ${convertFromCA(endHHMM)}`;
-    }
+    function fmtRangeDisplay(startHHMM,endHHMM){ return `${convertFromCA(startHHMM)} – ${convertFromCA(endHHMM)}`; }
     function weekdayNameInTZ(d,tz){ return new Intl.DateTimeFormat("en-US",{weekday:"long", timeZone:tz}).format(d); }
-
     function currentBlockForCA(dayIndex, minutes){
       const blocks = schedule[dayIndex] || [];
       for (const b of blocks){
@@ -241,6 +224,7 @@
     const clockEl    = document.getElementById("clock");
     const tzToggle   = document.getElementById("tzToggle");
     const tzMenu     = document.getElementById("tzMenu");
+    const chemSticker= document.getElementById("chemSticker");
 
     function updateToggleUI(){
       tzToggle.textContent = DISPLAY_OPTS[displayKey].label;
@@ -263,41 +247,66 @@
       if (!tzMenu.contains(e.target) && e.target !== tzToggle) openMenu(false);
     });
 
+    // ---------- Sticker control ----------
+    let stickerState = "hidden"; // "hidden" | "showing" | "hiding"
+    function showSticker(){
+      if (stickerState === "showing") return;
+      chemSticker.style.display = "block";
+      chemSticker.classList.remove("hide");
+      chemSticker.classList.add("show");
+      stickerState = "showing";
+    }
+    function hideSticker(){
+      if (stickerState === "hidden" || stickerState === "hiding") return;
+      chemSticker.classList.remove("show");
+      chemSticker.classList.add("hide");
+      stickerState = "hiding";
+    }
+    chemSticker.addEventListener("animationend", (e) => {
+      if (e.animationName === "stickerDown"){
+        chemSticker.style.display = "none";
+        stickerState = "hidden";
+      }
+    });
+
     function update(){
-      // Logic time: California
+      // Logic time in California
       const nowCA = nowInTZ(BASE_TZ);
       const dayIndexCA = nowCA.getDay();
       const minsCA = minutesSinceMidnight(nowCA);
 
-      // Day label + live clock in display zone
+      // Day label + live clock in selected display zone
       const dispTZ = DISPLAY_OPTS[displayKey].tz;
       dayLabelEl.textContent = weekdayNameInTZ(new Date(), dispTZ);
-
       const t = new Intl.DateTimeFormat("en-US", {
         timeZone: dispTZ, hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:true
       }).format(new Date());
       clockEl.textContent = t;
 
-      // Determine current/next
       const blocks = schedule[dayIndexCA] || [];
       const block  = currentBlockForCA(dayIndexCA, minsCA);
+
+      // Sticker only during Chemistry or Chem Lab
+      const stickerClasses = ["Chemistry","Chem Lab"];
+      if (block && stickerClasses.includes(block.name)){
+        showSticker();
+      } else {
+        hideSticker();
+      }
 
       if (block){
         statusEl.textContent = block.name;
         rangeEl.textContent  = `${fmtRangeDisplay(block.start, block.end)} (${DISPLAY_OPTS[displayKey].label})`;
       } else {
-        // Find the next block later today (in CA time)
         const next = blocks.find(b => minsCA < toMinutes(b.end));
         if (next){
           statusEl.textContent = lockedPhrase;
           rangeEl.textContent  = `Next Class: ${next.name} • ${fmtRangeDisplay(next.start, next.end)} (${DISPLAY_OPTS[displayKey].label})`;
         } else {
-          // No more classes left today (but if today has zero classes total, we keep weekend behavior)
           if (blocks.length > 0){
             statusEl.textContent = "All Done With Classes! 🎉";
             rangeEl.textContent  = "";
           } else {
-            // e.g., Saturday/Sunday: remain “locked asf”
             statusEl.textContent = lockedPhrase;
             rangeEl.textContent  = "";
           }
@@ -311,4 +320,5 @@
   </script>
 </body>
 </html>
+
 
